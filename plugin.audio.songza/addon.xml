@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.audio.songza"
+       name="Songza"
+       version="0.0.1"
+       provider-name="ByALongShot">
+  <requires>
+    <import addon="xbmc.python" version="2.0"/>
+    <import addon="script.module.BeautifulSoup" version="3.2.0"/>
+  </requires>
+  <extension point="xbmc.python.pluginsource" library="default.py">
+    <provides>audio</provides>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary>Plays music from the popular online service Songza</summary>
+    <description>Songza is a free music streaming and recommendation service.</description>
+    <disclaimer>Use at your own risk.  This may or may not violate the Songza TOS.</disclaimer>
+    <platform>all</platform>
+  </extension>
+</addon>
