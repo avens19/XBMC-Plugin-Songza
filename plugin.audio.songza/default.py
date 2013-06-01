@@ -32,8 +32,8 @@ def GetStoredData():
     return data
 
 
-def AddMenuEntry(title, url=None, isFolder=True):
-    listItem = xbmcgui.ListItem(unicode(title), iconImage='DefaultMusicPlaylists.png')
+def AddMenuEntry(title, url=None, isFolder=True, iconImage='DefaultMusicPlaylists.png'):
+    listItem = xbmcgui.ListItem(unicode(title), iconImage=iconImage)
     listItem.setInfo('music', {'title': title})
     if url is None:
         url = PLUGIN_URL + 'mode=%s' % MODES[title]
@@ -70,7 +70,7 @@ def ListScenarios():
     for scenario in data:
         title = scenario['title']
         url = PLUGIN_URL + urllib.urlencode({'scenario': title})
-        AddMenuEntry(title, url)
+        AddMenuEntry(title, url, iconImage=scenario['icon'])
     xbmcplugin.endOfDirectory(HANDLE)
 
 
@@ -82,7 +82,7 @@ def ListSituations(scenario):
             for situation in scenarioData['situations']:
                 title = situation['title']
                 url = PLUGIN_URL + urllib.urlencode({'scenario': scenario, 'situation': situation['id']})
-                AddMenuEntry(title, url)
+                AddMenuEntry(title, url, iconImage=scenarioData['icon'])
 
     xbmcplugin.endOfDirectory(HANDLE)
 
@@ -112,7 +112,7 @@ def ListBrowseStations(subcategoryUrl):
     soup = BeautifulSoup(GetHtml(subcategoryUrl), convertEntities=BeautifulSoup.HTML_ENTITIES)
     parent = soup.findAll('div', {'class': 'szi-station-list'})
     for link in parent[0].findAll('a', {'itemprop': 'url'}):
-        AddStation(link.string, link['data-sz-station-id'])
+        AddStation(link.string, link['data-sz-station-id'], 'http://songza.com/api/1/station/%s/image' % link['data-sz-station-id'])
     xbmcplugin.endOfDirectory(HANDLE)
 
 
@@ -134,14 +134,15 @@ def ListConciergeStations(scenario, situation):
     data = GetData(url, params)
 
     for station in data:
-        AddStation(station['name'], station['id'])
+
+        AddStation(station['name'], station['id'], iconImage=station['cover_url'])
 
     xbmcplugin.endOfDirectory(HANDLE)
 
 
-def AddStation(name, id):
+def AddStation(name, id, iconImage):
     url = PLUGIN_URL + 'station=%s' % id
-    return AddMenuEntry(name, url, False)
+    return AddMenuEntry(name, url, False, iconImage)
 
 
 def PlayStation(station):
@@ -215,4 +216,3 @@ elif 'mode' in args:
         ListBrowseCategories()
 else:
     RootMenu()
-
