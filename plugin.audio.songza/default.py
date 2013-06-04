@@ -12,11 +12,6 @@ from resources.lib import requests
 CACHED_JSON_FILE = 'songza.json'
 PLUGIN_URL = sys.argv[0] + '?'
 HANDLE = int(sys.argv[1])
-MODES = {
-    'Concierge': 1,
-    'Popular': 2,
-    'Browse': 3
-}
 
 
 def GetArguments():
@@ -54,12 +49,6 @@ def AddMenuEntry(title, url=None, isFolder=True, iconImage='DefaultMusicPlaylist
     return xbmcplugin.addDirectoryItem(handle=HANDLE, url=url, listitem=listItem, isFolder=isFolder)
 
 
-def RootMenu():
-    for key, val in MODES.items():
-        AddMenuEntry(key)
-    xbmcplugin.endOfDirectory(HANDLE)
-
-
 def GenerateList(data, titleKey, queryParam, dataKey, iconKey=None, isFolder=True, conditionalKey=None, conditionalValue=None):
     for item in data:
         title = item[titleKey]
@@ -71,6 +60,11 @@ def GenerateList(data, titleKey, queryParam, dataKey, iconKey=None, isFolder=Tru
                 AddMenuEntry(title, url, isFolder, item[iconKey])
 
     xbmcplugin.endOfDirectory(HANDLE)
+
+
+def ListModes():
+    data = [{'name': 'Concierge', 'id': 1}, {'name': 'Popular', 'id': 2}, {'name': 'Browse', 'id': 3}]
+    GenerateList(data, 'name', 'mode', 'id')
 
 
 def ListScenarios():
@@ -206,4 +200,4 @@ elif 'mode' in args:
     elif int(args['mode'][0]) == 3:  # Browse
         ListCategories()
 else:
-    RootMenu()
+    ListModes()
