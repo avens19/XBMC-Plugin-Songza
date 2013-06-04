@@ -9,7 +9,7 @@ import xbmcvfs
 from datetime import datetime
 from resources.lib import requests
 
-CACHED_JSON_FILE = 'songza.json'
+CACHED_JSON_FILE = 'special://temp/songza.json'
 PLUGIN_URL = sys.argv[0] + '?'
 HANDLE = int(sys.argv[1])
 
