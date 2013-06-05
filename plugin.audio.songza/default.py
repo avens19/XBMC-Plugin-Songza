@@ -9,7 +9,9 @@ import xbmcvfs
 from datetime import datetime
 from resources.lib import requests
 
-CACHED_JSON_FILE = 'special://temp/songza.json'
+CACHE_DIR = 'special://temp/songza/'
+CACHED_JSON_FILE = CACHE_DIR + 'concierge.json'
+CACHED_ICON_FILE = CACHE_DIR + '%s.jpg'
 PLUGIN_URL = sys.argv[0] + '?'
 HANDLE = int(sys.argv[1])
 
@@ -24,6 +26,9 @@ def GetData(url, params=None):
 
 
 def StoreData(data):
+    if not xbmcvfs.exists(CACHE_DIR):
+        xbmcvfs.mkdir(CACHE_DIR)
+
     if xbmcvfs.exists(CACHED_JSON_FILE):
         xbmcvfs.delete(CACHED_JSON_FILE)
 
@@ -40,24 +45,46 @@ def GetStoredData():
     return data
 
 
-def AddMenuEntry(title, url=None, isFolder=True, iconImage='DefaultMusicPlaylists.png'):
+def StoreIcon(id):
+    if not xbmcvfs.exists(CACHE_DIR):
+        xbmcvfs.mkdir(CACHE_DIR)
+
+    filePath = CACHED_ICON_FILE % id
+    if xbmcvfs.exists(filePath):
+        #TODO: Delete and refresh if X age - xbmcvfs.delete(filePath)
+        return filePath
+
+    url = 'http://songza.com/api/1/station/%s/image' % id
+    response = requests.get(url)
+    if response.status_code == 200:
+
+        dataFile = open(xbmc.translatePath(filePath), 'wb')
+        for chunk in response.iter_content():
+            dataFile.write(chunk)
+        dataFile.close()
+        response.close()
+
+    return filePath
+
+
+def AddMenuEntry(title, url=None, isFolder=True, description='', iconImage='DefaultMusicPlaylists.png'):
     listItem = xbmcgui.ListItem(unicode(title), iconImage=iconImage)
     listItem.setInfo('music', {'title': title})
+    listItem.setProperty('Album_Description', description)
     listItem.setThumbnailImage(iconImage)
-    if url is None:
-        url = PLUGIN_URL + 'mode=%s' % MODES[title]
     return xbmcplugin.addDirectoryItem(handle=HANDLE, url=url, listitem=listItem, isFolder=isFolder)
 
 
-def GenerateList(data, titleKey, queryParam, dataKey, iconKey=None, isFolder=True, conditionalKey=None, conditionalValue=None):
+def GenerateList(data, titleKey, queryParam, dataKey, descriptionKey=None, iconKey=None, isFolder=True, conditionalKey=None, conditionalValue=None):
     for item in data:
         title = item[titleKey]
         url = PLUGIN_URL + urllib.urlencode({queryParam: item[dataKey]})
+        description = item[descriptionKey] if descriptionKey is not None else ''
+        icon = 'DefaultMusicPlaylists.png'
+        if iconKey is not None:
+            icon = StoreIcon(item[iconKey])
         if conditionalKey is None or conditionalValue is None or item[conditionalKey] == conditionalValue:
-            if iconKey is None:
-                AddMenuEntry(title, url, isFolder)
-            else:
-                AddMenuEntry(title, url, isFolder, item[iconKey])
+            AddMenuEntry(title, url, isFolder, description, icon)
 
     xbmcplugin.endOfDirectory(HANDLE)
 
@@ -85,10 +112,9 @@ def ListScenarios():
         'max_situations': 5,
         'max_stations': 3
     })
+
     data = GetData(url, params)
-
     StoreData(data)
-
     GenerateList(data, 'title', 'scenario', 'title')
 
 
@@ -108,7 +134,7 @@ def ListCharts():
 def ListChartStations(chart):
     url = 'http://songza.com/api/1/chart/name/songza/%s' % chart
     data = GetData(url)
-    GenerateList(data, 'name', 'station', 'id', 'cover_url', False, 'status', 'NORMAL')
+    GenerateList(data, 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
 
 
 def ListCategories():
@@ -135,7 +161,7 @@ def ListStations(stations):
 
     data = GetData(url, params)
 
-    GenerateList(data, 'name', 'station', 'id', 'cover_url', False, 'status', 'NORMAL')
+    GenerateList(data, 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
 
 
 def PlayStation(station):
