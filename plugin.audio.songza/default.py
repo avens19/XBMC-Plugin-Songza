@@ -54,7 +54,7 @@ def StoreIcon(id):
         #TODO: Delete and refresh if X age - xbmcvfs.delete(filePath)
         return filePath
 
-    url = 'http://songza.com/api/1/station/%s/image' % id
+    url = 'http://songza.com/api/1/station/%s/image?size=180' % id
     response = requests.get(url)
     if response.status_code == 200:
 
