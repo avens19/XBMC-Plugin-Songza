@@ -3,6 +3,7 @@ import sys
 import urllib
 import urlparse
 import xbmc
+import os
 import xbmcgui
 import xbmcaddon
 import xbmcplugin
@@ -24,6 +25,7 @@ ADDONNAME   = ADDON.getAddonInfo('name')
 ICON        = ADDON.getAddonInfo('icon')
 USERID = ADDON.getSetting('userid')
 THUMB = ADDON.getSetting('thumb')
+THUMBAGE = ADDON.getSetting('thumbage')
 
 def GetArguments():
     return urlparse.parse_qs((sys.argv[2])[1:])
@@ -101,13 +103,35 @@ def StoreIcon(id):
     else:
         size = 200
 
+    if THUMBAGE == "1":     #1 day
+        limit = 24*60*60
+    elif THUMBAGE == "2":     #2 days
+        limit = 2*24*60*60
+    elif THUMBAGE == "3":     #5 days
+        limit = 5*24*60*60
+    elif THUMBAGE == "4":     #15 days
+        limit = 15*24*60*60
+    else:                     #30 days
+        limit = 30*24*60*60
+
     if not xbmcvfs.exists(CACHE_DIR):
         xbmcvfs.mkdir(CACHE_DIR)
 
     filePath = CACHED_ICON_FILE % id
     if xbmcvfs.exists(filePath):
-        #TODO: Delete and refresh if X age - xbmcvfs.delete(filePath)
-        return filePath
+        if THUMBAGE == "0":
+            return filePath
+
+        info = os.stat(xbmc.translatePath(filePath))
+        filetime = info.st_mtime
+        now = time.time()
+        diff = now - filetime
+
+        if diff < limit:
+            return filePath
+        else:
+            xbmcvfs.delete(filePath)
+        
 
     url = 'http://songza.com/api/1/station/{0}/image?size={1}'.format(id,size)
     response = requests.get(url)

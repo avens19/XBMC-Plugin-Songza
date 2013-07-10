@@ -2,4 +2,5 @@
 <settings>
  <setting id="userid" type="text" label="User ID (from profile)" />
  <setting id="thumb" type="enum" label="Thumbnail Size" values="Off|50 px|100 px|200 px|500 px|1000 px" default="3"/>
+ <setting id="thumbage" type="enum" label="Thumbnail Max Age" values="None|1 Day|2 Days|5 Days|15 Days|30 Days" default="5"/>
 </settings>
