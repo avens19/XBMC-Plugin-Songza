@@ -4,26 +4,65 @@ import urllib
 import urlparse
 import xbmc
 import xbmcgui
+import xbmcaddon
 import xbmcplugin
 import xbmcvfs
+import time
 from datetime import datetime
 from resources.lib import requests
+from resources.lib.requests import utils
+from resources.lib.requests import cookies
 
 CACHE_DIR = 'special://temp/songza/'
 CACHED_JSON_FILE = CACHE_DIR + 'concierge.json'
+CACHED_COOKIES_FILE = CACHE_DIR + 'cookies'
 CACHED_ICON_FILE = CACHE_DIR + '%s.jpg'
 PLUGIN_URL = sys.argv[0] + '?'
 HANDLE = int(sys.argv[1])
-
+ADDON       = xbmcaddon.Addon()
+ADDONNAME   = ADDON.getAddonInfo('name')
+ICON        = ADDON.getAddonInfo('icon')
+USERID = ADDON.getSetting('userid')
 
 def GetArguments():
     return urlparse.parse_qs((sys.argv[2])[1:])
 
 
 def GetData(url, params=None):
-    data = requests.get(url, params=params).json()
+    session = LoadSession()
+    cookies = dict(sessionid=str(session))
+    r = requests.get(url, params=params, cookies=cookies)
+    cookies = requests.utils.dict_from_cookiejar(r.cookies)
+    if 'sessionid' in cookies:
+        StoreSession(cookies['sessionid'])
+    if r.text == 'rate limit exceeded':
+        line1 = "You can't skip songs that quickly"
+        time = 2000  #in miliseconds
+        xbmc.executebuiltin('Notification(%s, %s, %d, %s)'%(ADDONNAME,line1, time, ICON))
+        return None
+    data = r.json()
     return data
 
+
+def StoreSession(session):
+    if not xbmcvfs.exists(CACHE_DIR):
+        xbmcvfs.mkdir(CACHE_DIR)
+
+    if xbmcvfs.exists(CACHED_COOKIES_FILE):
+        xbmcvfs.delete(CACHED_COOKIES_FILE)
+        
+    dataFile = xbmcvfs.File(CACHED_COOKIES_FILE, 'w')
+    dataFile.write(session)
+    dataFile.close()
+
+def LoadSession():
+    if not xbmcvfs.exists(CACHED_COOKIES_FILE):
+        return None
+
+    dataFile = xbmcvfs.File(CACHED_COOKIES_FILE)
+    session = dataFile.read()
+    dataFile.close()
+    return session
 
 def StoreData(data):
     if not xbmcvfs.exists(CACHE_DIR):
@@ -90,8 +129,12 @@ def GenerateList(data, titleKey, queryParam, dataKey, descriptionKey=None, iconK
 
 
 def ListModes():
-    data = [{'name': 'Concierge', 'id': 1}, {'name': 'Popular', 'id': 2}, {'name': 'Browse', 'id': 3}]
-    GenerateList(data, 'name', 'mode', 'id')
+	if(USERID == ""):
+		data = [{'name': 'Concierge', 'id': 1}, {'name': 'Popular', 'id': 2}, {'name': 'Browse', 'id': 3}, {'name': 'Search Playlists', 'id': 4}, {'name': 'Search Artists', 'id': 5}]
+	else:
+		data = [{'name': 'Concierge', 'id': 1}, {'name': 'Popular', 'id': 2}, {'name': 'Browse', 'id': 3}, {'name': 'Recent', 'id': 4}, {'name': 'My Playlists', 'id': 5}, {'name': 'Search Playlists', 'id': 6}, {'name': 'Search Artists', 'id': 7}]
+
+	GenerateList(data, 'name', 'mode', 'id')
 
 
 def ListScenarios():
@@ -120,6 +163,9 @@ def ListScenarios():
 
 def ListSituations(scenario):
     data = GetStoredData()
+
+    if xbmcvfs.exists(CACHED_COOKIES_FILE):
+        xbmcvfs.delete(CACHED_COOKIES_FILE)
 
     for scenarioData in data:
         if scenarioData['title'] == scenario:
@@ -169,8 +215,7 @@ def PlayStation(station):
     playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
     playlist.clear()
 
-    # Queue two songs so that there is no delay for next song info when skipping
-    QueueNextTrack(playlist, station)
+    # Queue the next song
     QueueNextTrack(playlist, station)
 
     # Start playing the playlist
@@ -178,8 +223,14 @@ def PlayStation(station):
     player.play(playlist)
 
 
+
 def QueueNextTrack(playlist, station):
     next = GetData('http://songza.com/api/1/station/%s/next' % station)
+
+    if next is None:
+        return
+
+    xbmc.log('Song queued: ' + next['song']['title'])
 
     # Create ListItem from next song info
     listItem = xbmcgui.ListItem(unicode(next['song']['title']), unicode(next['song']['artist']['name']))
@@ -200,8 +251,46 @@ def PlayTrack(station, url):
 
     # Queue the next song from the station
     playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
-    if playlist.getposition() > (len(playlist) - 3):
+    while playlist.getposition() > (len(playlist) - 3):
+        time.sleep(3)
         QueueNextTrack(playlist, station)
+
+def SearchPlaylists():
+	keyboard = xbmc.Keyboard()
+	keyboard.doModal()
+	query = keyboard.getText()
+	if (query == ""):
+		return
+
+	url = 'http://songza.com/api/1/search/station?query=%s' % query
+	data = GetData(url)
+	GenerateList(data, 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
+
+def SearchArtists():
+	keyboard = xbmc.Keyboard()
+	keyboard.doModal()
+	query = keyboard.getText()
+	if (query == ""):
+		return
+
+	url = 'http://songza.com/api/1/search/artist?query=%s' % query
+	data = GetData(url)
+	GenerateList(data, 'name', 'artist', 'id')
+
+def ListArtistsStations(artistid):
+	url = 'http://songza.com/api/1/artist/%s/stations' % artistid
+	data = GetData(url)
+	GenerateList(data, 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
+
+def ListRecent():
+	url = 'http://songza.com/api/1/user/%s/stations?limit=40&recent=1' % USERID
+	data = GetData(url)
+	GenerateList(data['recent']['stations'], 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
+
+def ListMyPlaylists():
+	url = 'http://songza.com/api/1/collection/user/%s' % USERID
+	data = GetData(url)
+	GenerateList(data, 'title', 'stations', 'station_ids')
 
 
 args = GetArguments()
@@ -218,6 +307,8 @@ elif 'tag' in args:
     ListSubcategories(args['tag'][0])
 elif 'scenario' in args:
     ListSituations(urllib.unquote(args['scenario'][0]))
+elif 'artist' in args:
+	ListArtistsStations(args['artist'][0])
 elif 'mode' in args:
     if int(args['mode'][0]) == 1:  # Concierge
         ListScenarios()
@@ -225,5 +316,13 @@ elif 'mode' in args:
         ListCharts()
     elif int(args['mode'][0]) == 3:  # Browse
         ListCategories()
+    elif int(args['mode'][0]) == 4:  # Recent
+        ListRecent()
+    elif int(args['mode'][0]) == 5:  # My Playlists
+        ListMyPlaylists()
+    elif int(args['mode'][0]) == 6:  # Search Playlists
+        SearchPlaylists()
+    elif int(args['mode'][0]) == 7:  # Search Artists
+        SearchArtists()
 else:
     ListModes()
