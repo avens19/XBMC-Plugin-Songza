@@ -145,6 +145,7 @@ def GenerateList(data, titleKey, queryParam, dataKey, descriptionKey=None, iconK
 
 
 def ListModes():
+
     if(USERID == ""):
         data = [{'name': 'Concierge', 'id': 1}, {'name': 'Popular', 'id': 2}, {'name': 'Browse', 'id': 3}, {'name': 'Search Playlists', 'id': 4}, {'name': 'Search Artists', 'id': 5}]
     else:
@@ -179,9 +180,6 @@ def ListScenarios():
 
 def ListSituations(scenario):
     data = GetStoredData()
-
-    if xbmcvfs.exists(CACHED_COOKIES_FILE):
-        xbmcvfs.delete(CACHED_COOKIES_FILE)
 
     for scenarioData in data:
         if scenarioData['title'] == scenario:
