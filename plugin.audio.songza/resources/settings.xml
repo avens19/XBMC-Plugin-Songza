@@ -1,4 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
  <setting id="userid" type="text" label="User ID (from profile)" />
+ <setting id="thumb" type="enum" label="Thumbnail Size" values="Off|50 px|100 px|200 px|500 px|1000 px" default="3"/>
 </settings>
