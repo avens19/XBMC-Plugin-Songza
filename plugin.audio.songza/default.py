@@ -17,6 +17,8 @@ from resources.lib.requests import cookies
 CACHE_DIR = 'special://temp/songza/'
 CACHED_JSON_FILE = CACHE_DIR + 'concierge.json'
 CACHED_COOKIES_FILE = CACHE_DIR + 'cookies'
+CACHED_PLAYLIST_FILE = CACHE_DIR + 'playlist'
+CACHED_LOAD_FLAG_FILE = CACHE_DIR + 'loadflag'
 CACHED_ICON_FILE = CACHE_DIR + '%s.jpg'
 PLUGIN_URL = sys.argv[0] + '?'
 HANDLE = int(sys.argv[1])
@@ -27,6 +29,7 @@ FANART      = ADDON.getAddonInfo('fanart')
 USERID = ADDON.getSetting('userid')
 THUMB = ADDON.getSetting('thumb')
 THUMBAGE = ADDON.getSetting('thumbage')
+PRELOAD = ADDON.getSetting('preload')
 
 def GetArguments():
     return urlparse.parse_qs((sys.argv[2])[1:])
@@ -59,6 +62,28 @@ def StoreSession(session):
     dataFile.write(session)
     dataFile.close()
 
+def StorePlaylist(id):
+    if not xbmcvfs.exists(CACHE_DIR):
+        xbmcvfs.mkdir(CACHE_DIR)
+
+    if xbmcvfs.exists(CACHED_PLAYLIST_FILE):
+        xbmcvfs.delete(CACHED_PLAYLIST_FILE)
+        
+    dataFile = xbmcvfs.File(CACHED_PLAYLIST_FILE, 'w')
+    dataFile.write(id)
+    dataFile.close()
+
+def StoreFlag(flag):
+    if not xbmcvfs.exists(CACHE_DIR):
+        xbmcvfs.mkdir(CACHE_DIR)
+
+    if xbmcvfs.exists(CACHED_LOAD_FLAG_FILE):
+        xbmcvfs.delete(CACHED_LOAD_FLAG_FILE)
+        
+    dataFile = xbmcvfs.File(CACHED_LOAD_FLAG_FILE, 'w')
+    dataFile.write(flag)
+    dataFile.close()
+
 def LoadSession():
     if not xbmcvfs.exists(CACHED_COOKIES_FILE):
         return None
@@ -67,6 +92,24 @@ def LoadSession():
     session = dataFile.read()
     dataFile.close()
     return session
+
+def LoadPlaylist():
+    if not xbmcvfs.exists(CACHED_PLAYLIST_FILE):
+        return None
+
+    dataFile = xbmcvfs.File(CACHED_PLAYLIST_FILE)
+    id = dataFile.read()
+    dataFile.close()
+    return id
+
+def LoadFlag():
+    if not xbmcvfs.exists(CACHED_LOAD_FLAG_FILE):
+        return None
+
+    dataFile = xbmcvfs.File(CACHED_LOAD_FLAG_FILE)
+    flag = dataFile.read()
+    dataFile.close()
+    return flag
 
 def StoreData(data):
     if not xbmcvfs.exists(CACHE_DIR):
@@ -255,6 +298,9 @@ def PlayStation(station):
     playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
     playlist.clear()
 
+    StorePlaylist(station)
+    StoreFlag('f')
+
     # Queue the next song
     QueueNextTrack(playlist, station)
 
@@ -285,15 +331,19 @@ def QueueNextTrack(playlist, station):
 
 
 def PlayTrack(station, url):
-    # Tell XBMC which URL to stream the song from
-    listItem = xbmcgui.ListItem(path=url)
-    xbmcplugin.setResolvedUrl(HANDLE, True, listItem)
+	# Tell XBMC which URL to stream the song from
+	listItem = xbmcgui.ListItem(path=url)
+	xbmcplugin.setResolvedUrl(HANDLE, True, listItem)
 
-    # Queue the next song from the station
-    playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
-    while playlist.getposition() > (len(playlist) - 3):
-        time.sleep(3)
-        QueueNextTrack(playlist, station)
+	if(LoadFlag() == 'f'):
+		StoreFlag('t')
+		# Queue the next song from the station
+		playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
+		while playlist.getposition() > (len(playlist) - int(float(PRELOAD)) + 1) and LoadPlaylist() == station:
+			time.sleep(3)
+			if(LoadPlaylist() == station):
+				QueueNextTrack(playlist, station)
+		StoreFlag('f')
 
 def SearchPlaylists():
     keyboard = xbmc.Keyboard()
