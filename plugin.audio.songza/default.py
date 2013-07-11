@@ -338,7 +338,7 @@ def PlayTrack(station, url):
 		# Queue the next song from the station
 		playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
 		try:
-			while playlist.getposition() > (len(playlist) - int(float(PRELOAD)) + 1) and LoadPlaylist() == station:
+			while playlist.getposition() > (len(playlist) - int(float(PRELOAD) - 1)) and LoadPlaylist() == station:
 				time.sleep(3)
 				if(LoadPlaylist() == station):
 					QueueNextTrack(playlist, station)
