@@ -316,8 +316,6 @@ def QueueNextTrack(playlist, station):
     if next is None:
         return
 
-    xbmc.log('Song queued: ' + next['song']['title'])
-
     # Create ListItem from next song info
     listItem = xbmcgui.ListItem(unicode(next['song']['title']), unicode(next['song']['artist']['name']))
     listItem.setInfo('music', {'duration': next['song']['duration'], 'genre': next['song']['genre'], 'album': next['song']['album'], 'artist': next['song']['artist']['name'], 'title': next['song']['title']})
@@ -339,11 +337,13 @@ def PlayTrack(station, url):
 		StoreFlag('t')
 		# Queue the next song from the station
 		playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
-		while playlist.getposition() > (len(playlist) - int(float(PRELOAD)) + 1) and LoadPlaylist() == station:
-			time.sleep(3)
-			if(LoadPlaylist() == station):
-				QueueNextTrack(playlist, station)
-		StoreFlag('f')
+		try:
+			while playlist.getposition() > (len(playlist) - int(float(PRELOAD)) + 1) and LoadPlaylist() == station:
+				time.sleep(3)
+				if(LoadPlaylist() == station):
+					QueueNextTrack(playlist, station)
+		finally:
+			StoreFlag('f')
 
 def SearchPlaylists():
     keyboard = xbmc.Keyboard()
