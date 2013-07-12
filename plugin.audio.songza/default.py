@@ -13,12 +13,15 @@ from datetime import datetime
 from resources.lib import requests
 from resources.lib.requests import utils
 from resources.lib.requests import cookies
+try:
+   import StorageServer
+except:
+   from resources.lib import storageserverdummy as StorageServer
+ 
+TEMP_CACHE = StorageServer.StorageServer("songza", 24)
 
 CACHE_DIR = 'special://temp/songza/'
 CACHED_JSON_FILE = CACHE_DIR + 'concierge.json'
-CACHED_COOKIES_FILE = CACHE_DIR + 'cookies'
-CACHED_PLAYLIST_FILE = CACHE_DIR + 'playlist'
-CACHED_LOAD_FLAG_FILE = CACHE_DIR + 'loadflag'
 CACHED_ICON_FILE = CACHE_DIR + '%s.jpg'
 PLUGIN_URL = sys.argv[0] + '?'
 HANDLE = int(sys.argv[1])
@@ -36,12 +39,12 @@ def GetArguments():
 
 
 def GetData(url, params=None):
-    session = LoadSession()
+    session = TEMP_CACHE.get("cookie")
     cookies = dict(sessionid=str(session))
     r = requests.get(url, params=params, cookies=cookies)
     cookies = requests.utils.dict_from_cookiejar(r.cookies)
     if 'sessionid' in cookies:
-        StoreSession(cookies['sessionid'])
+        TEMP_CACHE.set("cookie",cookies['sessionid'])
     if r.text == 'rate limit exceeded':
         line1 = "You can't skip songs that quickly"
         time = 2000  #in miliseconds
@@ -49,67 +52,6 @@ def GetData(url, params=None):
         return None
     data = r.json()
     return data
-
-
-def StoreSession(session):
-    if not xbmcvfs.exists(CACHE_DIR):
-        xbmcvfs.mkdir(CACHE_DIR)
-
-    if xbmcvfs.exists(CACHED_COOKIES_FILE):
-        xbmcvfs.delete(CACHED_COOKIES_FILE)
-        
-    dataFile = xbmcvfs.File(CACHED_COOKIES_FILE, 'w')
-    dataFile.write(session)
-    dataFile.close()
-
-def StorePlaylist(id):
-    if not xbmcvfs.exists(CACHE_DIR):
-        xbmcvfs.mkdir(CACHE_DIR)
-
-    if xbmcvfs.exists(CACHED_PLAYLIST_FILE):
-        xbmcvfs.delete(CACHED_PLAYLIST_FILE)
-        
-    dataFile = xbmcvfs.File(CACHED_PLAYLIST_FILE, 'w')
-    dataFile.write(id)
-    dataFile.close()
-
-def StoreFlag(flag):
-    if not xbmcvfs.exists(CACHE_DIR):
-        xbmcvfs.mkdir(CACHE_DIR)
-
-    if xbmcvfs.exists(CACHED_LOAD_FLAG_FILE):
-        xbmcvfs.delete(CACHED_LOAD_FLAG_FILE)
-        
-    dataFile = xbmcvfs.File(CACHED_LOAD_FLAG_FILE, 'w')
-    dataFile.write(flag)
-    dataFile.close()
-
-def LoadSession():
-    if not xbmcvfs.exists(CACHED_COOKIES_FILE):
-        return None
-
-    dataFile = xbmcvfs.File(CACHED_COOKIES_FILE)
-    session = dataFile.read()
-    dataFile.close()
-    return session
-
-def LoadPlaylist():
-    if not xbmcvfs.exists(CACHED_PLAYLIST_FILE):
-        return None
-
-    dataFile = xbmcvfs.File(CACHED_PLAYLIST_FILE)
-    id = dataFile.read()
-    dataFile.close()
-    return id
-
-def LoadFlag():
-    if not xbmcvfs.exists(CACHED_LOAD_FLAG_FILE):
-        return None
-
-    dataFile = xbmcvfs.File(CACHED_LOAD_FLAG_FILE)
-    flag = dataFile.read()
-    dataFile.close()
-    return flag
 
 def StoreData(data):
     if not xbmcvfs.exists(CACHE_DIR):
@@ -298,16 +240,19 @@ def PlayStation(station):
     playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
     playlist.clear()
 
-    StorePlaylist(station)
-    StoreFlag('f')
+    TEMP_CACHE.set("station",str(station))
+
+    if(TEMP_CACHE.get("flag") == 't'):
+        time.sleep(3)
 
     # Queue the next song
     QueueNextTrack(playlist, station)
 
+    TEMP_CACHE.set("flag","f")
+
     # Start playing the playlist
     player = xbmc.Player()
     player.play(playlist)
-
 
 
 def QueueNextTrack(playlist, station):
@@ -329,21 +274,21 @@ def QueueNextTrack(playlist, station):
 
 
 def PlayTrack(station, url):
-	# Tell XBMC which URL to stream the song from
-	listItem = xbmcgui.ListItem(path=url)
-	xbmcplugin.setResolvedUrl(HANDLE, True, listItem)
+    # Tell XBMC which URL to stream the song from
+    listItem = xbmcgui.ListItem(path=url)
+    xbmcplugin.setResolvedUrl(HANDLE, True, listItem)
 
-	if(LoadFlag() == 'f'):
-		StoreFlag('t')
+    if(TEMP_CACHE.get("flag") == 'f'):
+        playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
+        TEMP_CACHE.set("flag","t")
 		# Queue the next song from the station
-		playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
-		try:
-			while playlist.getposition() > (len(playlist) - int(float(PRELOAD)) - 1) and LoadPlaylist() == station:
-				time.sleep(3)
-				if(LoadPlaylist() == station):
-					QueueNextTrack(playlist, station)
-		finally:
-			StoreFlag('f')
+        try:
+            while playlist.getposition() > (len(playlist) - int(float(PRELOAD)) - 1) and TEMP_CACHE.get("station") == station:
+                time.sleep(3)
+                if(TEMP_CACHE.get("station") == station):
+                    QueueNextTrack(playlist, station)
+        finally:
+            TEMP_CACHE.set("flag","f")
 
 def SearchPlaylists():
     keyboard = xbmc.Keyboard()
