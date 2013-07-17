@@ -1,2 +1,8 @@
+Version 1.0.0:
+ - Bug Fix: Stations repeating single song.
+ - Feature: Search stations & artists.
+ - Feature: Browse recent and personal playlists.
+ - Feature: Added settings for thumbnail storage.
+
 Version 0.0.1:
-Created
+ - Created

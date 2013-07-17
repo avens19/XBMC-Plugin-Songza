@@ -1,57 +1,56 @@
 import json
+import os
 import sys
+import time
 import urllib
 import urlparse
 import xbmc
-import os
 import xbmcgui
 import xbmcaddon
 import xbmcplugin
 import xbmcvfs
-import time
 from datetime import datetime
 from resources.lib import requests
-from resources.lib.requests import utils
-from resources.lib.requests import cookies
 try:
-   import StorageServer
+    import StorageServer
 except:
-   from resources.lib import storageserverdummy as StorageServer
- 
-TEMP_CACHE = StorageServer.StorageServer("songza", 24)
+    from resources.lib import storageserverdummy as StorageServer
 
+TEMP_CACHE = StorageServer.StorageServer('songza', 24)
 CACHE_DIR = 'special://temp/songza/'
 CACHED_JSON_FILE = CACHE_DIR + 'concierge.json'
 CACHED_ICON_FILE = CACHE_DIR + '%s.jpg'
 PLUGIN_URL = sys.argv[0] + '?'
 HANDLE = int(sys.argv[1])
-ADDON       = xbmcaddon.Addon()
-ADDONNAME   = ADDON.getAddonInfo('name')
-ICON        = ADDON.getAddonInfo('icon')
-FANART      = ADDON.getAddonInfo('fanart')
-USERID = ADDON.getSetting('userid')
-THUMB = ADDON.getSetting('thumb')
-THUMBAGE = ADDON.getSetting('thumbage')
+ADDON = xbmcaddon.Addon()
+ADDONNAME = ADDON.getAddonInfo('name')
+ICON = ADDON.getAddonInfo('icon')
+FANART = ADDON.getAddonInfo('fanart')
+USER_ID = ADDON.getSetting('user_id')
+THUMB_SIZE = ADDON.getSetting('thumb_size')
+THUMB_AGE = ADDON.getSetting('thumb_age')
 PRELOAD = ADDON.getSetting('preload')
+
 
 def GetArguments():
     return urlparse.parse_qs((sys.argv[2])[1:])
 
 
 def GetData(url, params=None):
-    session = TEMP_CACHE.get("cookie")
+    session = TEMP_CACHE.get('cookie')
     cookies = dict(sessionid=str(session))
-    r = requests.get(url, params=params, cookies=cookies)
-    cookies = requests.utils.dict_from_cookiejar(r.cookies)
+    response = requests.get(url, params=params, cookies=cookies)
+    cookies = requests.utils.dict_from_cookiejar(response.cookies)
     if 'sessionid' in cookies:
-        TEMP_CACHE.set("cookie",cookies['sessionid'])
-    if r.text == 'rate limit exceeded':
-        line1 = "You can't skip songs that quickly"
-        time = 2000  #in miliseconds
-        xbmc.executebuiltin('Notification(%s, %s, %d, %s)'%(ADDONNAME,line1, time, ICON))
+        TEMP_CACHE.set('cookie', cookies['sessionid'])
+    if response.text == 'rate limit exceeded':
+        warning = "You can't skip songs that quickly."
+        display_time = 2000  # in milliseconds
+        xbmc.executebuiltin('Notification(%s, %s, %d, %s)' % (ADDONNAME, warning, display_time, ICON))
         return None
-    data = r.json()
+    data = response.json()
     return data
+
 
 def StoreData(data):
     if not xbmcvfs.exists(CACHE_DIR):
@@ -73,56 +72,47 @@ def GetStoredData():
     return data
 
 
-def StoreIcon(id):
-    if THUMB == "0":
-        return None
-    elif THUMB == "1":     #50 px
-        size = 50
-    elif THUMB == "2":     #100 px
-        size = 100
-    elif THUMB == "3":     #200 px
-        size = 200
-    elif THUMB == "4":     #500 px
-        size = 500
-    elif THUMB == "5":     #1000 px
-        size = 1000
-    else:
-        size = 200
+def StoreIcon(icon_id):
+    thumbnail_sizes = {
+        '1': 50,
+        '2': 100,
+        '3': 200,
+        '4': 500,
+        '5': 1000
+    }
 
-    if THUMBAGE == "1":     #1 day
-        limit = 24*60*60
-    elif THUMBAGE == "2":     #2 days
-        limit = 2*24*60*60
-    elif THUMBAGE == "3":     #5 days
-        limit = 5*24*60*60
-    elif THUMBAGE == "4":     #15 days
-        limit = 15*24*60*60
-    else:                     #30 days
-        limit = 30*24*60*60
+    day_in_seconds = 24 * 60 * 60
+    thumb_ages = {
+        '1': day_in_seconds,
+        '2': 2 * day_in_seconds,
+        '3': 5 * day_in_seconds,
+        '4': 15 * day_in_seconds,
+        '5': 30 * day_in_seconds
+    }
 
     if not xbmcvfs.exists(CACHE_DIR):
         xbmcvfs.mkdir(CACHE_DIR)
 
-    filePath = CACHED_ICON_FILE % id
+    filePath = CACHED_ICON_FILE % icon_id
     if xbmcvfs.exists(filePath):
-        if THUMBAGE == "0":
+        if THUMB_AGE == '0':
             return filePath
 
         info = os.stat(xbmc.translatePath(filePath))
         filetime = info.st_mtime
         now = time.time()
         diff = now - filetime
+        limit = thumb_ages[THUMB_AGE] if THUMB_AGE else thumb_ages['5']
 
         if diff < limit:
             return filePath
         else:
             xbmcvfs.delete(filePath)
-        
 
-    url = 'http://songza.com/api/1/station/{0}/image?size={1}'.format(id,size)
+    size = thumbnail_sizes[THUMB_SIZE] if THUMB_SIZE else thumbnail_sizes['3']
+    url = 'http://songza.com/api/1/station/%s/image?size=%s' % (icon_id, size)
     response = requests.get(url)
     if response.status_code == 200:
-
         dataFile = open(xbmc.translatePath(filePath), 'wb')
         for chunk in response.iter_content():
             dataFile.write(chunk)
@@ -146,9 +136,7 @@ def GenerateList(data, titleKey, queryParam, dataKey, descriptionKey=None, iconK
         title = item[titleKey]
         url = PLUGIN_URL + urllib.urlencode({queryParam: item[dataKey]})
         description = item[descriptionKey] if descriptionKey is not None else ''
-        icon = 'DefaultMusicPlaylists.png'
-        if iconKey is not None and THUMB != "0":
-            icon = StoreIcon(item[iconKey])
+        icon = 'DefaultMusicPlaylists.png' if iconKey is None or THUMB_SIZE == '0' else StoreIcon(item[iconKey])
         if conditionalKey is None or conditionalValue is None or item[conditionalKey] == conditionalValue:
             AddMenuEntry(title, url, isFolder, description, icon)
 
@@ -156,13 +144,9 @@ def GenerateList(data, titleKey, queryParam, dataKey, descriptionKey=None, iconK
 
 
 def ListModes():
-
-    if(USERID == ""):
-        data = [{'name': 'Concierge', 'id': 1}, {'name': 'Popular', 'id': 2}, {'name': 'Browse', 'id': 3}, {'name': 'Search Playlists', 'id': 4}, {'name': 'Search Artists', 'id': 5}]
-    else:
-        data = [{'name': 'Concierge', 'id': 1}, {'name': 'Popular', 'id': 2}, {'name': 'Browse', 'id': 3}, {'name': 'Recent', 'id': 4}, {'name': 'My Playlists', 'id': 5}, {'name': 'Search Playlists', 'id': 6}, {'name': 'Search Artists', 'id': 7}]
-
-    GenerateList(data, 'name', 'mode', 'id')
+    if USER_ID == '':
+        MODES[:] = [mode for mode in MODES if not mode['user_required']]
+    GenerateList(MODES, 'name', 'mode', 'id')
 
 
 def ListScenarios():
@@ -240,19 +224,61 @@ def PlayStation(station):
     playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
     playlist.clear()
 
-    TEMP_CACHE.set("station",str(station))
+    TEMP_CACHE.set('station', str(station))
 
-    if(TEMP_CACHE.get("flag") == 't'):
+    if(TEMP_CACHE.get('flag') == 't'):
         time.sleep(3)
 
     # Queue the next song
     QueueNextTrack(playlist, station)
 
-    TEMP_CACHE.set("flag","f")
+    TEMP_CACHE.set('flag', 'f')
 
     # Start playing the playlist
     player = xbmc.Player()
     player.play(playlist)
+
+
+def SearchStations():
+    keyboard = xbmc.Keyboard()
+    keyboard.doModal()
+    query = keyboard.getText()
+    if (query == ''):
+        return
+
+    url = 'http://songza.com/api/1/search/station?query=%s' % query
+    data = GetData(url)
+    GenerateList(data, 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
+
+
+def SearchArtists():
+    keyboard = xbmc.Keyboard()
+    keyboard.doModal()
+    query = keyboard.getText()
+    if (query == ''):
+        return
+
+    url = 'http://songza.com/api/1/search/artist?query=%s' % query
+    data = GetData(url)
+    GenerateList(data, 'name', 'artist', 'id')
+
+
+def ListArtistsStations(artistid):
+    url = 'http://songza.com/api/1/artist/%s/stations' % artistid
+    data = GetData(url)
+    GenerateList(data, 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
+
+
+def ListRecent():
+    url = 'http://songza.com/api/1/user/%s/stations?limit=40&recent=1' % USER_ID
+    data = GetData(url)
+    GenerateList(data['recent']['stations'], 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
+
+
+def ListMyPlaylists():
+    url = 'http://songza.com/api/1/collection/user/%s' % USER_ID
+    data = GetData(url)
+    GenerateList(data, 'title', 'stations', 'station_ids')
 
 
 def QueueNextTrack(playlist, station):
@@ -278,55 +304,27 @@ def PlayTrack(station, url):
     listItem = xbmcgui.ListItem(path=url)
     xbmcplugin.setResolvedUrl(HANDLE, True, listItem)
 
-    if(TEMP_CACHE.get("flag") == 'f'):
+    if(TEMP_CACHE.get('flag') == 'f'):
         playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
-        TEMP_CACHE.set("flag","t")
-		# Queue the next song from the station
+        TEMP_CACHE.set('flag', 't')
+        # Queue the next song from the station
         try:
-            while playlist.getposition() > (len(playlist) - int(float(PRELOAD)) - 1) and TEMP_CACHE.get("station") == station:
+            while playlist.getposition() > (len(playlist) - int(float(PRELOAD)) - 1) and TEMP_CACHE.get('station') == station:
                 time.sleep(3)
-                if(TEMP_CACHE.get("station") == station):
+                if(TEMP_CACHE.get('station') == station):
                     QueueNextTrack(playlist, station)
         finally:
-            TEMP_CACHE.set("flag","f")
+            TEMP_CACHE.set('flag', 'f')
 
-def SearchPlaylists():
-    keyboard = xbmc.Keyboard()
-    keyboard.doModal()
-    query = keyboard.getText()
-    if (query == ""):
-        return
-
-    url = 'http://songza.com/api/1/search/station?query=%s' % query
-    data = GetData(url)
-    GenerateList(data, 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
-
-def SearchArtists():
-    keyboard = xbmc.Keyboard()
-    keyboard.doModal()
-    query = keyboard.getText()
-    if (query == ""):
-        return
-
-    url = 'http://songza.com/api/1/search/artist?query=%s' % query
-    data = GetData(url)
-    GenerateList(data, 'name', 'artist', 'id')
-
-def ListArtistsStations(artistid):
-    url = 'http://songza.com/api/1/artist/%s/stations' % artistid
-    data = GetData(url)
-    GenerateList(data, 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
-
-def ListRecent():
-    url = 'http://songza.com/api/1/user/%s/stations?limit=40&recent=1' % USERID
-    data = GetData(url)
-    GenerateList(data['recent']['stations'], 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
-
-def ListMyPlaylists():
-    url = 'http://songza.com/api/1/collection/user/%s' % USERID
-    data = GetData(url)
-    GenerateList(data, 'title', 'stations', 'station_ids')
-
+MODES = [
+    {'id': '1', 'name': 'Concierge', 'handler': ListScenarios, 'user_required': False},
+    {'id': '2', 'name': 'Popular', 'handler': ListCharts, 'user_required': False},
+    {'id': '3', 'name': 'Browse', 'handler': ListCategories, 'user_required': False},
+    {'id': '4', 'name': 'Recent', 'handler': ListRecent, 'user_required': True},
+    {'id': '5', 'name': 'My Playlists', 'handler': ListMyPlaylists, 'user_required': True},
+    {'id': '6', 'name': 'Search Stations', 'handler': SearchStations, 'user_required': False},
+    {'id': '7', 'name': 'Search Artists', 'handler': SearchArtists, 'user_required': False}
+]
 
 args = GetArguments()
 
@@ -345,19 +343,6 @@ elif 'scenario' in args:
 elif 'artist' in args:
     ListArtistsStations(args['artist'][0])
 elif 'mode' in args:
-    if int(args['mode'][0]) == 1:  # Concierge
-        ListScenarios()
-    elif int(args['mode'][0]) == 2:  # Popular
-        ListCharts()
-    elif int(args['mode'][0]) == 3:  # Browse
-        ListCategories()
-    elif int(args['mode'][0]) == 4:  # Recent
-        ListRecent()
-    elif int(args['mode'][0]) == 5:  # My Playlists
-        ListMyPlaylists()
-    elif int(args['mode'][0]) == 6:  # Search Playlists
-        SearchPlaylists()
-    elif int(args['mode'][0]) == 7:  # Search Artists
-        SearchArtists()
+    (mode['handler']() for mode in MODES if mode['id'] == args['mode'][0]).next()
 else:
     ListModes()
