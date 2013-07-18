@@ -1,6 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
- <setting id="userid" type="text" label="User ID (from profile)" />
+ <setting id="user" type="text" label="Username" />
+ <setting id="password" type="text" option="hidden" label="Password" />
  <setting id="thumb" type="enum" label="Thumbnail Size" values="Off|50 px|100 px|200 px|500 px|1000 px" default="3"/>
  <setting id="thumbage" type="enum" label="Thumbnail Max Age" values="None|1 Day|2 Days|5 Days|15 Days|30 Days" default="5"/>
  <setting id="preload" label="Playlist Preload (songs)" type="slider" default="2" range="2,10"/>
