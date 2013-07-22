@@ -45,7 +45,7 @@ def GetData(url, params=None):
     if 'sessionid' in cookies:
         TEMP_CACHE.set('cookie', cookies['sessionid'])
     if response.text == 'rate limit exceeded':
-        warning = "You can't skip songs that quickly."
+        warning = 'You can\'t skip songs that quickly.'
         display_time = 2000  # in milliseconds
         xbmc.executebuiltin('Notification(%s, %s, %d, %s)' % (ADDONNAME, warning, display_time, ICON))
         return None
@@ -53,22 +53,22 @@ def GetData(url, params=None):
     return data
 
 def PostData(url,data=None):
-    session = TEMP_CACHE.get("cookie")
+    session = TEMP_CACHE.get('cookie')
     cookies = dict(sessionid=str(session))
     response = requests.post(url,data=data,cookies=cookies)
     cookies = requests.utils.dict_from_cookiejar(response.cookies)
     if 'sessionid' in cookies:
-      TEMP_CACHE.set("cookie",cookies['sessionid'])
+      TEMP_CACHE.set('cookie',cookies['sessionid'])
     return response.json()
 
 def Login():
-    USERID = TEMP_CACHE.get("userid")
-    if USER != "" and PASSWORD != "" and USERID == "":
-        xbmc.log("here")
+    USERID = TEMP_CACHE.get('userid')
+    if USER != '' and PASSWORD != '' and USERID == '':
+        xbmc.log('here')
         url = 'http://songza.com/api/1/login/pw'
-        data = PostData(url,{"username":USER,"password":PASSWORD,"site":"songza"})
-        TEMP_CACHE.set("userid",str(data["id"]))
-        xbmc.log(str(data["id"]))
+        data = PostData(url,{'username':USER,'password':PASSWORD,'site':'songza'})
+        TEMP_CACHE.set('userid',str(data['id']))
+        xbmc.log(str(data['id']))
 
 def StoreData(data):
     if not xbmcvfs.exists(CACHE_DIR):
@@ -146,9 +146,9 @@ def AddMenuEntry(title, url=None, isFolder=True, description='', iconImage='Defa
     listItem.setProperty('Album_Description', description)
     listItem.setProperty('fanart_image', FANART)
     listItem.setThumbnailImage(iconImage)
-    USERID = TEMP_CACHE.get("userid")
-    if not isFolder and USERID != "":
-        listItem.addContextMenuItems([("Add to Songza list","XBMC.RunScript(special://home/addons/plugin.audio.songza/resources/lib/dialog.py,&user="+USERID+"&station=" + str(data)+")")])
+    USERID = TEMP_CACHE.get('userid')
+    if not isFolder and USERID != '':
+        listItem.addContextMenuItems([('Add to Songza list','XBMC.RunScript(special://home/addons/plugin.audio.songza/resources/lib/dialog.py,&user='+USERID+'&station=' + str(data)+')')])
     return xbmcplugin.addDirectoryItem(handle=HANDLE, url=url, listitem=listItem, isFolder=isFolder)
 
 
@@ -157,10 +157,10 @@ def GenerateList(data, titleKey, queryParam, dataKey, descriptionKey=None, iconK
         title = item[titleKey]
         url = PLUGIN_URL + urllib.urlencode({queryParam: item[dataKey]})
         if extraData is not None:
-            url = url + "&station="+extraData
+            url = url + '&station='+extraData
         description = item[descriptionKey] if descriptionKey is not None else ''
         icon = 'DefaultMusicPlaylists.png'
-        if iconKey is not None and THUMB_SIZE != "0":
+        if iconKey is not None and THUMB_SIZE != '0':
             icon = StoreIcon(item[iconKey])
         if conditionalKey is None or conditionalValue is None or item[conditionalKey] == conditionalValue:
             AddMenuEntry(title, url, isFolder, description, icon, item[dataKey])
@@ -170,7 +170,7 @@ def GenerateList(data, titleKey, queryParam, dataKey, descriptionKey=None, iconK
 
 def ListModes():
     Login()
-    USERID = TEMP_CACHE.get("userid")
+    USERID = TEMP_CACHE.get('userid')
     if USERID == '':
         MODES[:] = [mode for mode in MODES if not mode['user_required']]
     GenerateList(MODES, 'name', 'mode', 'id')
@@ -299,14 +299,14 @@ def ListArtistsStations(artistid):
 
 
 def ListRecent():
-    USERID = TEMP_CACHE.get("userid")
+    USERID = TEMP_CACHE.get('userid')
     url = 'http://songza.com/api/1/user/%s/stations?limit=40&recent=1' % USERID
     data = GetData(url)
     GenerateList(data['recent']['stations'], 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
 
 
 def ListMyPlaylists():
-    USERID = TEMP_CACHE.get("userid")
+    USERID = TEMP_CACHE.get('userid')
     url = 'http://songza.com/api/1/collection/user/%s' % USERID
     data = GetData(url)
     GenerateList(data, 'title', 'stations', 'station_ids')
@@ -332,9 +332,9 @@ def QueueNextTrack(playlist, station):
     return next['song']['id']
 
 def AddStationToRecent(station,track):
-    USERID = TEMP_CACHE.get("userid")
-    if USERID != "":
-        url = str.format("http://songza.com/api/1/station/{0}/song/{1}/notify-play",station,track)
+    USERID = TEMP_CACHE.get('userid')
+    if USERID != '':
+        url = str.format('http://songza.com/api/1/station/{0}/song/{1}/notify-play',station,track)
         PostData(url)
 
 
