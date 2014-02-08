@@ -9,6 +9,7 @@ import xbmcgui
 import xbmcaddon
 import xbmcplugin
 import xbmcvfs
+import thread
 from datetime import datetime
 from resources.lib import requests
 try:
@@ -161,7 +162,7 @@ def GenerateList(data, titleKey, queryParam, dataKey, descriptionKey=None, iconK
         description = item[descriptionKey] if descriptionKey is not None else ''
         icon = 'DefaultMusicPlaylists.png'
         if iconKey is not None and THUMB_SIZE != '0':
-            icon = StoreIcon(item[iconKey])
+            icon = CACHED_ICON_FILE % item[iconKey]
         if conditionalKey is None or conditionalValue is None or item[conditionalKey] == conditionalValue:
             AddMenuEntry(title, url, isFolder, description, icon, item[dataKey])
 
@@ -244,6 +245,7 @@ def ListStations(stations):
     data = GetData(url, params)
 
     GenerateList(data, 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
+    thread.start_new_thread(GetAlbumCovers,(data,'id',))
 
 
 def PlayStation(station):
@@ -354,6 +356,11 @@ def PlayTrack(station, url):
                     QueueNextTrack(playlist, station)
         finally:
             TEMP_CACHE.set('flag', 'f')
+
+def GetAlbumCovers(data, iconKey):
+    for item in data:
+        StoreIcon(item[iconKey])
+    return
 
 MODES = [
     {'id': '1', 'name': 'Concierge', 'handler': ListScenarios, 'user_required': False},
