@@ -5,7 +5,7 @@
        provider-name="ByALongShot">
   <requires>
     <import addon="xbmc.python" version="2.1"/>
-    <import addon="script.common.plugin.cache" version="2.5.2"/>
+    <import addon="script.common.plugin.cache" version="2.5.4"/>
   </requires>
   <extension point="xbmc.python.pluginsource" library="default.py">
     <provides>audio</provides>
