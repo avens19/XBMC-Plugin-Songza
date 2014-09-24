@@ -51,7 +51,6 @@ def GetData(url, params=None):
         headers['Proxy-Authorization'] = 'Basic %s' % base64.b64encode('%s:%s' % (PROXYUSER, PROXYPASS))
         proxies = { 'http': 'http://%s' % (PROXYURL) }
     elif PROXYUSER == '' and PROXYPASS == '' and PROXYURL != '':
-        print 'proxyurl'
         proxies = { 'http': 'http://%s' % (PROXYURL) }
     response = requests.get(url, params=params, cookies=cookies, proxies=proxies, headers=headers)
     cookies = requests.utils.dict_from_cookiejar(response.cookies)
@@ -74,7 +73,6 @@ def PostData(url,data=None):
         headers['Proxy-Authorization'] = 'Basic %s' % base64.b64encode('%s:%s' % (PROXYUSER, PROXYPASS))
         proxies = { 'http': 'http://%s' % (PROXYURL) }
     elif PROXYUSER == '' and PROXYPASS == '' and PROXYURL != '':
-        print 'proxyurl'
         proxies = { 'http': 'http://%s' % (PROXYURL) }
     response = requests.post(url,data=data,cookies=cookies, proxies=proxies, headers=headers)
     cookies = requests.utils.dict_from_cookiejar(response.cookies)
@@ -176,7 +174,7 @@ def AddMenuEntry(title, url=None, isFolder=True, description='', iconImage='Defa
 def GenerateList(data, titleKey, queryParam, dataKey, descriptionKey=None, iconKey=None, isFolder=True, conditionalKey=None, conditionalValue=None, extraData=None):
     for item in data:
         title = item[titleKey]
-        url = PLUGIN_URL + urllib.urlencode({queryParam: item[dataKey]})
+        url = PLUGIN_URL + urllib.urlencode({queryParam: item[dataKey], 'title': title})
         if extraData is not None:
             url = url + '&station='+extraData
         description = item[descriptionKey] if descriptionKey is not None else ''
@@ -268,12 +266,13 @@ def ListStations(stations):
     thread.start_new_thread(GetAlbumCovers,(data,'id',))
 
 
-def PlayStation(station):
+def PlayStation(station, title):
     # Get and clear the music playlist
     playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
     playlist.clear()
 
     TEMP_CACHE.set('station', str(station))
+    TEMP_CACHE.set('stationName', title)
 
     if(TEMP_CACHE.get('flag') == 't'):
         time.sleep(3)
@@ -340,9 +339,11 @@ def QueueNextTrack(playlist, station):
     if next is None:
         return
 
+    stationName = TEMP_CACHE.get('stationName')
+
     # Create ListItem from next song info
     listItem = xbmcgui.ListItem(unicode(next['song']['title']), unicode(next['song']['artist']['name']))
-    listItem.setInfo('music', {'duration': next['song']['duration'], 'genre': next['song']['genre'], 'album': next['song']['album'], 'artist': next['song']['artist']['name'], 'title': next['song']['title']})
+    listItem.setInfo('music', {'duration': next['song']['duration'], 'genre': next['song']['genre'], 'album': next['song']['album'], 'artist': next['song']['artist']['name'], 'title': next['song']['title'], 'comment': stationName })
     listItem.setThumbnailImage(next['song']['cover_url'])
 
     # Need to add codec info for XBMC to pick the correct player
@@ -397,7 +398,7 @@ args = GetArguments()
 if 'play' in args:
     PlayTrack(args['station'][0], args['play'][0])
 elif 'station' in args:
-    PlayStation(args['station'][0])
+    PlayStation(args['station'][0], args['title'][0])
 elif 'stations' in args:
     ListStations(json.loads(args['stations'][0]))
 elif 'chart' in args:

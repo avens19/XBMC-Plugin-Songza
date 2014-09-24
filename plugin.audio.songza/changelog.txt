@@ -1,3 +1,5 @@
+Version 1.1.1:
+ - Added MusicPlayer.Comment info tag for Station name
 Version 1.1.0:
  - Added proxy capability
 Version 1.0.1:
