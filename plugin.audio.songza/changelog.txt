@@ -1,3 +1,7 @@
+Version 1.1.0:
+ - Added proxy capability
+Version 1.0.1:
+ - Bug fixes
 Version 1.0.0:
  - Bug Fix: Stations repeating single song.
  - Feature: Search stations & artists.

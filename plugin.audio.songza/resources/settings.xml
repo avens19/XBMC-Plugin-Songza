@@ -5,4 +5,7 @@
     <setting id="thumb_size" type="enum" label="Thumbnail Size" values="Off|50 px|100 px|200 px|500 px|1000 px" default="3"/>
     <setting id="thumb_age" type="enum" label="Thumbnail Max Age" values="None|1 Day|2 Days|5 Days|15 Days|30 Days" default="5"/>
     <setting id="preload" label="Playlist Preload (songs)" type="slider" default="2" range="2,10"/>
+    <setting id="proxyurl" label="HTTP Proxy Host" type="text"/>
+    <setting id="proxyuser" label="HTTP Proxy Username" type="text"/>
+    <setting id="proxypass" label="HTTP Proxy Password" type="text" option="hidden"/>
 </settings>

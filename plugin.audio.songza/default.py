@@ -10,6 +10,7 @@ import xbmcaddon
 import xbmcplugin
 import xbmcvfs
 import thread
+import base64
 from datetime import datetime
 from resources.lib import requests
 try:
@@ -32,6 +33,9 @@ PASSWORD = ADDON.getSetting('password')
 THUMB_SIZE = ADDON.getSetting('thumb_size')
 THUMB_AGE = ADDON.getSetting('thumb_age')
 PRELOAD = ADDON.getSetting('preload')
+PROXYUSER = ADDON.getSetting('proxyuser')
+PROXYPASS = ADDON.getSetting('proxypass')
+PROXYURL = ADDON.getSetting('proxyurl')
 
 
 def GetArguments():
@@ -41,7 +45,15 @@ def GetArguments():
 def GetData(url, params=None):
     session = TEMP_CACHE.get('cookie')
     cookies = dict(sessionid=str(session))
-    response = requests.get(url, params=params, cookies=cookies)
+    proxies = None
+    headers = {}
+    if PROXYUSER != '' and PROXYPASS != '' and PROXYURL != '':
+        headers['Proxy-Authorization'] = 'Basic %s' % base64.b64encode('%s:%s' % (PROXYUSER, PROXYPASS))
+        proxies = { 'http': 'http://%s' % (PROXYURL) }
+    elif PROXYUSER == '' and PROXYPASS == '' and PROXYURL != '':
+        print 'proxyurl'
+        proxies = { 'http': 'http://%s' % (PROXYURL) }
+    response = requests.get(url, params=params, cookies=cookies, proxies=proxies, headers=headers)
     cookies = requests.utils.dict_from_cookiejar(response.cookies)
     if 'sessionid' in cookies:
         TEMP_CACHE.set('cookie', cookies['sessionid'])
@@ -56,7 +68,10 @@ def GetData(url, params=None):
 def PostData(url,data=None):
     session = TEMP_CACHE.get('cookie')
     cookies = dict(sessionid=str(session))
-    response = requests.post(url,data=data,cookies=cookies)
+    proxies = None
+    if PROXYUSER != '' and PROXYPASS != '' and PROXYURL != '':
+        proxies = { 'http': '%s:%s@%s' % (PROXYUSER, PROXYPASS, PROXYURL) }
+    response = requests.post(url,data=data,cookies=cookies, proxies=proxies)
     cookies = requests.utils.dict_from_cookiejar(response.cookies)
     if 'sessionid' in cookies:
       TEMP_CACHE.set('cookie',cookies['sessionid'])
