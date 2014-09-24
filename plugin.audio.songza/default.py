@@ -69,9 +69,14 @@ def PostData(url,data=None):
     session = TEMP_CACHE.get('cookie')
     cookies = dict(sessionid=str(session))
     proxies = None
+    headers = {}
     if PROXYUSER != '' and PROXYPASS != '' and PROXYURL != '':
-        proxies = { 'http': '%s:%s@%s' % (PROXYUSER, PROXYPASS, PROXYURL) }
-    response = requests.post(url,data=data,cookies=cookies, proxies=proxies)
+        headers['Proxy-Authorization'] = 'Basic %s' % base64.b64encode('%s:%s' % (PROXYUSER, PROXYPASS))
+        proxies = { 'http': 'http://%s' % (PROXYURL) }
+    elif PROXYUSER == '' and PROXYPASS == '' and PROXYURL != '':
+        print 'proxyurl'
+        proxies = { 'http': 'http://%s' % (PROXYURL) }
+    response = requests.post(url,data=data,cookies=cookies, proxies=proxies, headers=headers)
     cookies = requests.utils.dict_from_cookiejar(response.cookies)
     if 'sessionid' in cookies:
       TEMP_CACHE.set('cookie',cookies['sessionid'])
