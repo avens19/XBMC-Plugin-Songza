@@ -174,7 +174,7 @@ def AddMenuEntry(title, url=None, isFolder=True, description='', iconImage='Defa
 def GenerateList(data, titleKey, queryParam, dataKey, descriptionKey=None, iconKey=None, isFolder=True, conditionalKey=None, conditionalValue=None, extraData=None):
     for item in data:
         title = item[titleKey]
-        url = PLUGIN_URL + urllib.urlencode({queryParam: item[dataKey], 'title': title})
+        url = PLUGIN_URL + urllib.urlencode({queryParam: item[dataKey], 'title': title.encode('ascii','ignore')})
         if extraData is not None:
             url = url + '&station='+extraData
         description = item[descriptionKey] if descriptionKey is not None else ''
@@ -235,6 +235,7 @@ def ListCharts():
 def ListChartStations(chart):
     url = 'http://songza.com/api/1/chart/name/songza/%s' % chart
     data = GetData(url)
+    thread.start_new_thread(GetAlbumCovers,(data,'id',))
     GenerateList(data, 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
 
 
@@ -298,6 +299,7 @@ def SearchStations():
 
     url = 'http://songza.com/api/1/search/station?query=%s' % query
     data = GetData(url)
+    thread.start_new_thread(GetAlbumCovers,(data,'id',))
     GenerateList(data, 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
 
 
@@ -317,6 +319,7 @@ def ListArtistsStations(artistid):
     url = 'http://songza.com/api/1/artist/%s/stations' % artistid
     data = GetData(url)
     GenerateList(data, 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
+    thread.start_new_thread(GetAlbumCovers,(data,'id',))
 
 
 def ListRecent():
@@ -324,6 +327,7 @@ def ListRecent():
     url = 'http://songza.com/api/1/user/%s/stations?limit=40&recent=1' % USERID
     data = GetData(url)
     GenerateList(data['recent']['stations'], 'name', 'station', 'id', 'description', 'id', False, 'status', 'NORMAL')
+    thread.start_new_thread(GetAlbumCovers,(data['recent']['stations'],'id',))
 
 
 def ListMyPlaylists():
